@@ -123,10 +123,75 @@ print(card_df[['カードID', '名称', '読み', 'キーワード']])
 3. 結果シートに結果を追加
    - メニューID、項目ID、結果ID、**カード番号（重要！）**、結果本文
 
+### STEP 5: SQLファイル作成
+1. ファイル作成
+   - ファイル名: `menu_{メニューID}.sql`
+   - 例: メニューID 1043の場合 → `menu_1043.sql`
+
+2. SQLファイルの構造
+   ```sql
+   -- ========================================
+   -- 占いメニュー: {メニュー名}
+   -- Contents ID: {メニューID}
+   -- 作成日: YYYY-MM-DD
+   -- ========================================
+
+   -- 1. mana_contentsテーブルに追加
+   INSERT INTO flowt_seimei.mana_contents (contents_id, name, catch, caption, category, tag_1, tag_2, tag_3, tag_4, tag_5, start_date) VALUES
+   ({メニューID}, '{メニュー名}', '{キャッチコピー}', '{キャプション}', {カテゴリーID}, NULL, NULL, NULL, NULL, NULL, '{公開日}');
+
+   -- 2. mana_menuテーブルに追加
+   INSERT INTO flowt_seimei.mana_menu (contents_id, menu_id, name) VALUES
+   ({メニューID}, {項目ID1}, '{項目名1}'),
+   ({メニューID}, {項目ID2}, '{項目名2}'),
+   ({メニューID}, {項目ID3}, '{項目名3}');
+
+   -- 3. mana_resultテーブルに追加
+   INSERT INTO flowt_seimei.mana_result (contents_id, menu_id, result_id, body) VALUES
+   ({メニューID}, {項目ID1}, {結果ID1}, '{鑑定文1}'),
+   ({メニューID}, {項目ID1}, {結果ID2}, '{鑑定文2}'),
+   ...;
+
+   -- 4. mana_cardテーブルに追加
+   INSERT INTO flowt_seimei.mana_card (contents_id, menu_id, result_id, body) VALUES
+   ({メニューID}, {項目ID1}, {結果ID1}, {カードID1}),
+   ({メニューID}, {項目ID1}, {結果ID2}, {カードID2}),
+   ...;
+
+   -- ========================================
+   -- インポート完了
+   -- ========================================
+   -- 確認クエリ:
+   -- SELECT * FROM mana_contents WHERE contents_id = {メニューID};
+   -- SELECT * FROM mana_menu WHERE contents_id = {メニューID};
+   -- SELECT * FROM mana_result WHERE contents_id = {メニューID};
+   -- SELECT * FROM mana_card WHERE contents_id = {メニューID};
+   ```
+
+3. 重要な注意点
+   - SQLの文字列内にシングルクォート（'）が含まれる場合は、2つ重ねる（''）
+   - 例: `WA'A` → `WA''A`、`LONO/KAMAPUA'A` → `LONO/KAMAPUA''A`
+   - 鑑定文内の改行は削除し、1行で記述する
+   - 各INSERT文は項目数に応じて行数が変わる
+
+4. データの対応関係
+   | Excel シート | SQLテーブル | 主なカラム |
+   |-------------|------------|-----------|
+   | メニュー | mana_contents | contents_id, name, catch, caption, category, start_date |
+   | 小項目 | mana_menu | contents_id, menu_id, name |
+   | 結果 | mana_result | contents_id, menu_id, result_id, body |
+   | （結果） | mana_card | contents_id, menu_id, result_id, body（カードID） |
+
+5. 確認手順
+   - SQLファイルを作成したら、必ず末尾の確認クエリを実行
+   - データが正しく投入されているか確認
+   - カード番号が正しくmana_cardテーブルに登録されているか確認
+
 ---
 
 ## ✅ 作成後のチェックリスト
 
+### Excelデータ
 - [ ] カード番号がcard_name.csvのカードIDと一致している
 - [ ] 各カードの意味（キーワード、概要）と鑑定文の内容が整合している
 - [ ] 鑑定文にカード名が明記されている
@@ -134,6 +199,14 @@ print(card_df[['カードID', '名称', '読み', 'キーワード']])
 - [ ] 小項目の質問が明確で分かりやすい
 - [ ] 各項目に適切な数のカードが割り当てられている（通常4枚程度）
 - [ ] メニュー、小項目、結果の件数が整合している
+
+### SQLファイル
+- [ ] ファイル名が`menu_{メニューID}.sql`形式になっている
+- [ ] 4つのテーブル（mana_contents, mana_menu, mana_result, mana_card）すべてにINSERT文がある
+- [ ] シングルクォートのエスケープ処理が正しく行われている（' → ''）
+- [ ] 鑑定文の改行が削除されている
+- [ ] カードIDがmana_cardテーブルに正しく登録されている
+- [ ] 確認クエリが記載されている
 
 ---
 
@@ -212,6 +285,7 @@ python check_card_usage.py
 - `card_name.csv` - カードマスタデータ
 - `check_card_usage.py` - カード使用パターン確認ツール
 - `fix_menu_1068.py` - メニュー1068の修正例（参考コード）
+- `menu_1043.sql` - SQLファイル作成の参考例
 
 ---
 

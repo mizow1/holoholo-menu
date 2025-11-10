@@ -1,0 +1,21 @@
+# データベース接続情報を含むファイル
+config.php
+
+# 環境設定ファイル
+.env
+.env.local
+
+# IDEおよびエディタ設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS生成ファイル
+.DS_Store
+Thumbs.db
+
+# 一時ファイル
+*.tmp
+*.log

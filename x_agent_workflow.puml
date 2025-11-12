@@ -1,0 +1,156 @@
+@startuml X自動投稿エージェントワークフロー
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam handwritten false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1976D2
+  FontColor #0D47A1
+  DiamondBackgroundColor #FFF3E0
+  DiamondBorderColor #F57C00
+}
+skinparam partition {
+  BorderColor #757575
+  BackgroundColor #F5F5F5
+}
+
+title X（Twitter）自動投稿エージェントワークフロー
+
+|#FFE0B2|初期化フェーズ|
+start
+:システム起動;
+:設定ファイル読み込み;
+note right
+  * API認証情報
+  * 投稿スケジュール設定
+  * コンテンツソース設定
+  * ハッシュタグリスト
+end note
+:X API認証;
+:データベース接続確立;
+
+|#E8F5E9|コンテンツ生成フェーズ|
+partition "コンテンツソース" {
+  :トリガーイベント確認;
+  split
+    :RSSフィード取得;
+  split again
+    :トレンド分析;
+  split again
+    :予定投稿確認;
+  split again
+    :AIコンテンツ生成;
+    note right
+      * GPT/Claude API利用
+      * プロンプトテンプレート適用
+    end note
+  end split
+}
+
+:コンテンツプール作成;
+
+|#E3F2FD|投稿準備フェーズ|
+:投稿候補選択;
+:コンテンツ最適化;
+note left
+  * 文字数調整（280文字以内）
+  * URL短縮
+  * ハッシュタグ追加
+  * メンション確認
+end note
+
+if (画像/動画添付？) then (あり)
+  :メディアファイル処理;
+  :画像最適化/動画圧縮;
+  :メディアアップロード;
+else (なし)
+endif
+
+|#F3E5F5|検証フェーズ|
+:コンテンツ検証;
+if (禁止ワード含む？) then (はい)
+  :コンテンツ修正/除外;
+  backward:コンテンツプール作成;
+else (いいえ)
+endif
+
+if (重複投稿チェック) then (重複あり)
+  :代替コンテンツ選択;
+  backward:投稿候補選択;
+else (重複なし)
+endif
+
+|#FFF9C4|スケジューリングフェーズ|
+:最適投稿時間算出;
+note right
+  * エンゲージメント履歴分析
+  * フォロワーアクティブ時間
+  * タイムゾーン考慮
+end note
+
+if (即時投稿？) then (はい)
+  :投稿キューに追加（優先度:高）;
+else (いいえ)
+  :スケジュールキューに追加;
+  :cron/スケジューラー登録;
+endif
+
+|#FFEBEE|投稿実行フェーズ|
+:投稿時刻待機;
+:X API呼び出し;
+note left
+  POST /2/tweets
+  * text
+  * media_ids
+  * reply_settings
+end note
+
+if (API応答) then (成功)
+  :投稿ID記録;
+  :投稿履歴DB更新;
+else (失敗)
+  :エラーログ記録;
+  if (リトライ可能？) then (はい)
+    :待機時間設定;
+    backward:X API呼び出し;
+    note right: 最大3回リトライ
+  else (いいえ)
+    :管理者通知;
+    :失敗キューに移動;
+  endif
+endif
+
+|#E0F2F1|監視・分析フェーズ|
+fork
+  :エンゲージメント監視;
+  :いいね/RT/返信数取得;
+  :分析データ蓄積;
+fork again
+  :返信監視;
+  if (返信あり？) then (はい)
+    :自動返信判定;
+    if (自動返信対象？) then (はい)
+      :返信生成;
+      backward:投稿準備フェーズ;
+    else (いいえ)
+      :通知のみ;
+    endif
+  else (いいえ)
+  endif
+end fork
+
+|#F0F4C3|レポーティングフェーズ|
+:パフォーマンス集計;
+:日次/週次レポート生成;
+:改善ポイント抽出;
+
+if (1日の投稿完了？) then (いいえ)
+  backward:コンテンツ生成フェーズ;
+else (はい)
+  :日次処理実行;
+  stop
+endif
+
+@enduml

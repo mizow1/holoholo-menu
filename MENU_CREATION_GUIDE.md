@@ -360,6 +360,12 @@ print(card_df[['カードID', '名称', '読み', 'キーワード']])
 - [ ] カードIDがmana_cardテーブルに正しく登録されている
 - [ ] 確認クエリが記載されている
 
+### 🚨 重複チェック（自動生成時は必須）
+- [ ] **`python check_duplicates.py`を実行して重複なしを確認**
+  - 特に大量生成時（50件以上）は必ず実行
+  - タイトル重複はSEOスパムと判定されるリスクあり
+  - 重複が見つかった場合は該当メニューを再生成
+
 ---
 
 ## 🛠️ 便利なスクリプト
@@ -500,6 +506,77 @@ python check_card_usage.py
 2. 一文ずつ主語と述語の対応を確認
 3. STEP 3の「カード概要の自然な組み込み方」セクションを参照
 
+### Q5: 自動生成したメニューでタイトルが重複してしまった
+**A:** シード生成ロジックの問題です。以下を確認してください
+
+**🚨 重要: タイトル重複はSEOスパムと判定されるリスクがあります**
+
+**問題の原因:**
+- 単純な `random.seed(contents_id)` だけでは、異なるcontents_idでも偶然同じランダム値が生成される可能性がある
+- 特に大量のメニュー生成時（100件以上）に重複が発生しやすい
+
+**解決方法: get_seed_value()関数を使用**
+
+`generate_truly_unique_menus.py` に実装されている正しいシード生成方法:
+
+```python
+def get_seed_value(contents_id, function_type):
+    """contents_idから関数タイプ別のユニークなシード値を生成
+
+    大きな素数を使ってシードの分散を改善し、
+    異なる関数で同じシード値にならないようにする
+    """
+    prime = 7919  # 大きな素数
+    offset_map = {
+        'cards': 0,
+        'title': 1,      # タイトル生成用
+        'catch': 2,      # キャッチコピー生成用
+        'caption': 3,    # キャプション生成用
+        'components': 4,
+        'items': 5       # 小項目生成用
+    }
+    offset = offset_map.get(function_type, 0)
+    return contents_id * prime + offset * 97
+```
+
+**使用例:**
+```python
+# ❌ 悪い例: 衝突の可能性あり
+def generate_unique_menu_name(contents_id, category_id):
+    random.seed(contents_id)  # これだけでは不十分
+    # ...
+
+# ✅ 良い例: 関数別に異なるシード値
+def generate_unique_menu_name(contents_id, category_id):
+    random.seed(get_seed_value(contents_id, 'title'))  # 正しい
+    # ...
+
+def generate_unique_catch(contents_id, category_id):
+    random.seed(get_seed_value(contents_id, 'catch'))  # 正しい
+    # ...
+```
+
+**重複チェックの必須化:**
+```bash
+# メニュー生成後は必ずチェックを実行
+python check_duplicates.py
+```
+
+**チェック結果の見方:**
+```
+[OK] 重複なし！全メニューがユニークです。
+→ 問題なし
+
+[警告] 重複したメニューが見つかりました！
+→ 該当メニューを再生成する必要あり
+```
+
+**再発防止のポイント:**
+1. **必ず `get_seed_value()` を使用する** - 単純な `contents_id` だけでシードを生成しない
+2. **関数タイプ別にシードを分ける** - タイトル、キャッチ、キャプション、小項目でそれぞれ異なるシード
+3. **生成後は必ず重複チェック** - 特に50件以上の大量生成時は必須
+4. **素数を使用する** - 7919など大きな素数を使うことで分散を改善
+
 ---
 
 ## 📚 参考資料
@@ -511,4 +588,4 @@ python check_card_usage.py
 
 ---
 
-**最終更新: 2025-11-10**
+**最終更新: 2025-11-13**
